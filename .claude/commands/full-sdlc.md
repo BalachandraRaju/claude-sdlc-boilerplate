@@ -27,11 +27,27 @@ This is the master orchestration command. It runs the full SDLC pipeline with pr
    - Component tree diagram → `docs/diagrams/<feature>/component-tree.excalidraw.json`
 9. **User checkpoint**: Present design + diagrams for approval
 
-### Phase 3: Implementation + Testing (Interleaved)
-Tests run after EACH implementation step — not deferred to a separate phase.
+### Phase 3: Test Case Generation (BEFORE implementation)
+10. Generate test plan from PRD → `/generate-tests` with `test-agent`:
+    - Read every acceptance criterion from `docs/prd/`
+    - Read the implementation doc and diagrams from Phase 2
+    - Build a **test matrix** mapping each criterion to test cases at each layer:
 
-10. Create team with TeamCreate
-11. Create tasks with interleaved test dependencies (see `/launch-team` for the full task list):
+    | Criterion | Unit (Backend) | Unit (Frontend) | Integration | E2E |
+    |-----------|---------------|-----------------|-------------|-----|
+    | "User can create profile" | ServiceTest | FormTest | POST → 201 | Fill form → submit → verify |
+    | "Name is required" | shouldFail_whenNull | shows error | POST empty → 400 | Submit empty → see error |
+
+    - Write the test plan document: `docs/test-plans/TEST-<feature>.md`
+    - Every cell in the matrix = actual test code to be written
+    - The test plan drives all test steps in Phase 4
+11. **User checkpoint**: User reviews and approves test plan before implementation
+
+### Phase 4: Implementation + Testing (Interleaved)
+Tests run after EACH implementation step. Test-agent references the test plan from Phase 3 at each step.
+
+12. Create team with TeamCreate
+13. Create tasks with interleaved test dependencies (see `/launch-team` for the full task list):
 
    **Backend — build + test each layer**:
    - DB migrations → Entities + Repos → **Repository tests (run now)** → Services → **Service tests (run now)** → Controllers + DTOs → **Integration tests (run now)** (verify `ApiResponse` format)
@@ -39,49 +55,50 @@ Tests run after EACH implementation step — not deferred to a separate phase.
    **Frontend — build + test each layer (starts after controllers)**:
    - API services → **API service tests (run now)** (verify `unwrapResponse`/`extractError`) → Components → **Component tests + browser automation (run now)** → Pages → **E2E Playwright tests + full browser automation (run now)**
 
-12. Spawn agents — all agents read `docs/implementation/IMPL-<feature>.md` for context
-13. **User checkpoint**: User reviews implementation progress
+14. Spawn agents — all agents read `docs/implementation/IMPL-<feature>.md` and `docs/test-plans/TEST-<feature>.md` for context
+15. **User checkpoint**: User reviews implementation progress
 
-### Phase 4: Validation (Test Generation + Browser Automation)
-14. Resolve all TODOs: `/resolve-todos` — fix or create Linear issues
-15. Generate comprehensive test plan: `/generate-tests` — map every PRD criterion to test cases
-16. Run full test suite: `/run-tests` — all backend + frontend + E2E must pass
-17. Browser automation validation:
+### Phase 5: Validation (Coverage Check + Browser Automation)
+16. Resolve all TODOs: `/resolve-todos` — fix or create Linear issues
+17. Verify test plan coverage: cross-check `docs/test-plans/TEST-<feature>.md` — every PRD criterion must have passing tests
+18. Run full test suite: `/run-tests` — all backend + frontend + E2E must pass
+19. Browser automation validation:
     - Navigate every page with Playwright MCP
     - Screenshot each state (empty, loading, data, error)
     - Verify form submissions end-to-end
     - Verify error display matches `ApiError` format from backend
     - Verify pagination controls work
-18. **User checkpoint**: User confirms all tests pass + browser verification looks correct
+20. **User checkpoint**: User confirms all tests pass + browser verification looks correct
 
-### Phase 5: Quality (Parallel)
-19. Code review → `/review-code` with `review-agent`
-20. Security review → `/security-review` with `security-agent`
-21. Code quality → `/analyze-code` with `review-agent`
-22. Fix any findings → `/fix-review`
-23. Re-run full test suite after fixes — must stay green
-24. Re-run browser automation — verify fixes didn't break UI
-25. **User checkpoint**: User reviews quality findings
+### Phase 6: Quality (Parallel)
+21. Code review → `/review-code` with `review-agent`
+22. Security review → `/security-review` with `security-agent`
+23. Code quality → `/analyze-code` with `review-agent`
+24. Fix any findings → `/fix-review`
+25. Re-run full test suite after fixes — must stay green
+26. Re-run browser automation — verify fixes didn't break UI
+27. **User checkpoint**: User reviews quality findings
 
-### Phase 6: Documentation
-26. Update implementation doc with final state:
+### Phase 7: Documentation
+28. Update implementation doc with final state:
     - All files changed
     - All endpoints created (with `ApiResponse` format examples)
     - How to test manually
     - Lessons learned
-27. Update diagrams if implementation diverged from design
-28. Generate final sequence diagram for key flows
+29. Update test plan with actual results and coverage
+30. Update diagrams if implementation diverged from design
+31. Generate final sequence diagram for key flows
 
-### Phase 7: Deploy
-29. Build local → `/build-local`
-30. Deploy staging → `/deploy-staging`
-31. Deploy production → `/deploy-prod` (user confirmation required)
+### Phase 8: Deploy
+32. Build local → `/build-local`
+33. Deploy staging → `/deploy-staging`
+34. Deploy production → `/deploy-prod` (user confirmation required)
 
-### Phase 8: Ship
-32. Final review pass
-33. Update Linear issues to "Done"
-34. Generate session summary
-35. If using worktree, remind: "Merge when ready: `git checkout main && git merge feature/<feature-name>`"
-36. Clean up: `bash scripts/worktree-cleanup.sh <feature-name>` (after merge)
+### Phase 9: Ship
+35. Final review pass
+36. Update Linear issues to "Done"
+37. Generate session summary
+38. If using worktree, remind: "Merge when ready: `git checkout main && git merge feature/<feature-name>`"
+39. Clean up: `bash scripts/worktree-cleanup.sh <feature-name>` (after merge)
 
 $ARGUMENTS

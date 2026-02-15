@@ -48,7 +48,34 @@ This document describes how the agents, skills, and tools work together across t
 │                      ↓                                          │
 │               User Approval                                     │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 3: IMPLEMENTATION + TESTING (interleaved)                │
+│  Phase 3: TEST CASE GENERATION  ← /generate-tests               │
+│                                                                 │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
+│  │ Read PRD │───→│Build Test│───→│Write Test│                  │
+│  │acceptance│    │ Matrix:  │    │Plan Doc  │                  │
+│  │ criteria │    │criterion │    │          │                  │
+│  │          │    │→ tests at│    │docs/test-│                  │
+│  │test-agent│    │each layer│    │plans/    │                  │
+│  └──────────┘    └──────────┘    └──────────┘                  │
+│                                                                 │
+│  Test matrix maps EACH acceptance criterion to:                 │
+│  ┌────────────┬──────────┬──────────┬───────────┬─────────┐    │
+│  │ Criterion  │ Unit(BE) │ Unit(FE) │ Integratn │  E2E    │    │
+│  ├────────────┼──────────┼──────────┼───────────┼─────────┤    │
+│  │ "User can  │ Service  │ Form     │ POST /api │ Fill    │    │
+│  │  create    │ Test     │ render + │ → 201     │ form →  │    │
+│  │  profile"  │ + Repo   │ submit   │ + DB chk  │ submit →│    │
+│  │            │ Test     │ test     │ + headers │ verify  │    │
+│  └────────────┴──────────┴──────────┴───────────┴─────────┘    │
+│                                                                 │
+│  Output: docs/test-plans/TEST-<feature>.md                      │
+│  Every cell in the matrix = actual test code to write.          │
+│  This plan drives ALL test steps in Phase 4.                    │
+│                      ↓                                          │
+│               User Approval of test plan                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Phase 4: IMPLEMENTATION + TESTING (interleaved)                │
+│  Test-agent references test plan from Phase 3 at each step.     │
 │                                                                 │
 │  ┌──────────┐    ┌──────────┐                                   │
 │  │DB Migrate│───→│ Entities │ (backend-agent)                   │
@@ -56,7 +83,7 @@ This document describes how the agents, skills, and tools work together across t
 │                  └────┬─────┘                                   │
 │                       ↓                                         │
 │                  ┌──────────┐                                   │
-│                  │Repo Tests│ (test-agent) ← TEST NOW           │
+│                  │Repo Tests│ (test-agent) ← from test plan     │
 │                  │Testcontrs│                                    │
 │                  └────┬─────┘                                   │
 │                       ↓                                         │
@@ -65,7 +92,7 @@ This document describes how the agents, skills, and tools work together across t
 │                  └────┬─────┘                                   │
 │                       ↓                                         │
 │                  ┌──────────┐                                   │
-│                  │ Service  │ (test-agent) ← TEST NOW           │
+│                  │ Service  │ (test-agent) ← from test plan     │
 │                  │  Tests   │                                   │
 │                  └────┬─────┘                                   │
 │                       ↓                                         │
@@ -75,37 +102,39 @@ This document describes how the agents, skills, and tools work together across t
 │                  └────┬─────┘                                   │
 │                       ↓                                         │
 │                  ┌──────────┐                                   │
-│                  │Integrtn  │ (test-agent) ← TEST NOW           │
+│                  │Integrtn  │ (test-agent) ← from test plan     │
 │                  │  Tests   │ verify ApiResponse format         │
 │                  └────┬─────┘                                   │
 │                       ↓                                         │
 │  ┌──────────┐    ┌──────────┐                                   │
-│  │API Svcs  │───→│ API Svc  │ (test-agent) ← TEST NOW          │
-│  │front-agt │    │  Tests   │ verify unwrapResponse/extractError│
+│  │API Svcs  │───→│ API Svc  │ (test-agent) ← from test plan    │
+│  │front-agt │    │  Tests   │                                   │
 │  └──────────┘    └────┬─────┘                                   │
 │                       ↓                                         │
 │  ┌──────────┐    ┌──────────┐                                   │
-│  │Components│───→│Component │ (test-agent) ← TEST NOW           │
-│  │ + Hooks  │    │  Tests   │ + Playwright browser automation   │
-│  │front-agt │    │          │                                   │
+│  │Components│───→│Component │ (test-agent) ← from test plan    │
+│  │ + Hooks  │    │Tests +   │ + Playwright browser automation   │
+│  │front-agt │    │Browser   │                                   │
 │  └──────────┘    └────┬─────┘                                   │
 │                       ↓                                         │
 │  ┌──────────┐    ┌──────────┐                                   │
-│  │Pages +   │───→│E2E Tests │ (test-agent) ← TEST NOW          │
+│  │Pages +   │───→│E2E Tests │ (test-agent) ← from test plan    │
 │  │ Routing  │    │Playwright│ full browser automation           │
 │  │front-agt │    │          │ screenshot + click flows          │
 │  └──────────┘    └──────────┘                                   │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 4: VALIDATION                                            │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
-│  │Resolve   │───→│Full Test │───→│Browser   │                  │
-│  │All TODOs │    │  Suite   │    │Automation│                  │
-│  │back/front│    │test-agent│    │Playwright│                  │
-│  └──────────┘    └──────────┘    │ verify   │                  │
-│                                  └──────────┘                  │
-│         All tests green + all pages visually verified           │
+│  Phase 5: VALIDATION                                            │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
+│  │Resolve   │───→│Verify    │───→│Full Test │───→│Browser   │  │
+│  │All TODOs │    │test plan │    │  Suite   │    │Automation│  │
+│  │back/front│    │coverage: │    │test-agent│    │Playwright│  │
+│  │          │    │every PRD │    │          │    │ verify   │  │
+│  │          │    │criterion │    │          │    │          │  │
+│  │          │    │has tests │    │          │    │          │  │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
+│     All TODOs resolved + all criteria covered + all green       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 5: QUALITY  (all parallel)                               │
+│  Phase 6: QUALITY  (all parallel)                               │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                      │
 │  │Code Revw │  │Sec Review│  │SonarQube │                      │
 │  │review-agt│  │secur-agt │  │review-agt│                      │
@@ -118,14 +147,14 @@ This document describes how the agents, skills, and tools work together across t
 │                    ↓                                            │
 │              Browser Automation (re-verify after fixes)          │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 6: DEPLOY                                                │
+│  Phase 7: DEPLOY                                                │
 │  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
 │  │Build Locl│───→│  Staging │───→│   Prod   │                  │
 │  │devops-agt│    │devops-agt│    │devops-agt│                  │
 │  └──────────┘    └──────────┘    └──────────┘                  │
 │                                   ↑ User confirm required       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 7: SHIP                                                  │
+│  Phase 8: SHIP                                                  │
 │  ┌──────────┐                                                   │
 │  │Final Revw│───→ Update Linear ───→ Update Impl Doc ───→ Done  │
 │  │review-agt│                                                   │
@@ -262,9 +291,10 @@ TeamDelete()
 
 **Must be sequential** (outputs feed into next step):
 - PRD → PRD Review → Approval
-- DB Migration → Entities → Repo Tests → Services → Service Tests → Controllers → Integration Tests
-- API Services → API Service Tests → UI Components → Component Tests → Pages → E2E Tests
-- Implementation → TODO Resolution → Full Test Suite → Quality Reviews
+- Design Approval → **Test Case Generation (test plan from PRD)** → Implementation
+- Test Plan → DB Migration → Entities → Repo Tests → Services → Service Tests → Controllers → Integration Tests
+- Test Plan → API Services → API Service Tests → UI Components → Component Tests → Pages → E2E Tests
+- Implementation → TODO Resolution → **Verify Test Plan Coverage** → Full Test Suite → Quality Reviews
 - Build → Staging → Production
 
 **Can run in parallel** (independent work):

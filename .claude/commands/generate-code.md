@@ -32,11 +32,27 @@ Create at least one Excalidraw diagram showing:
 Save to: `docs/diagrams/<feature>/architecture.excalidraw.json`
 Reference it in the implementation doc.
 
-### Step 4: Create Team
+### Step 4: Generate Test Plan (BEFORE writing code)
+Use `/generate-tests` to create the test plan:
+1. Read PRD acceptance criteria — extract every testable requirement
+2. Read the implementation doc and diagrams from Steps 2-3
+3. Build a **test matrix** — map each acceptance criterion to test cases at each layer:
+   - Unit tests (backend): repository + service tests
+   - Unit tests (frontend): component + service tests
+   - Integration tests: full HTTP roundtrip with `ApiResponse` format verification
+   - E2E tests: Playwright browser flows
+4. Write the test plan document: `docs/test-plans/TEST-<feature>.md`
+5. Every cell in the matrix = actual test code to be written during implementation
+
+### Step 5: Create Team
 Use TeamCreate to set up a code generation team.
 
-### Step 5: Create Tasks (Implementation + Tests Interleaved)
-Break down the feature into tasks with test steps after each implementation step:
+### Step 6: Create Tasks (Implementation + Tests Interleaved)
+Break down the feature into tasks with test steps after each implementation step.
+**Test-agent references the test plan from Step 4 at every test step.**
+
+**Test Case Generation:**
+- Generate test plan from PRD (test-agent, runs after doc)
 
 **Documentation:**
 - Create/update implementation doc + diagrams (architect-agent, runs first)
@@ -60,10 +76,11 @@ Break down the feature into tasks with test steps after each implementation step
 
 **Validation:**
 - Resolve all TODOs (backend/frontend agents)
+- Verify test plan coverage — every PRD criterion has passing tests (test-agent)
 - Run full test suite + browser automation (test-agent) ← VALIDATE ALL
-- Update implementation doc with final state (architect-agent, last)
+- Update implementation doc + test plan with final state (architect-agent, last)
 
-### Step 6: Spawn Agents
+### Step 7: Spawn Agents
 Use the Task tool to spawn:
 - `backend-agent` — for Java/Spring Boot code (sequential: migration -> entity -> service -> controller)
 - `frontend-agent` — for React/TypeScript code (starts after controllers are done)
@@ -71,26 +88,30 @@ Use the Task tool to spawn:
 
 All agents must read `docs/implementation/IMPL-<feature>.md` for context before starting.
 
-### Step 7: Dependency Order
+### Step 8: Dependency Order
 ```
 Impl Doc + Diagrams
        ↓
-DB Migration → Entities + Repos → [Repo Tests] → Services → [Service Tests]
-                                                                   ↓
-                                              Controllers + DTOs → [Integration Tests]
-                                                                   ↓
-                                              API Services → [API Service Tests]
-                                                                   ↓
-                                              Components → [Component Tests + Browser]
-                                                                   ↓
-                                              Pages → [E2E Tests + Browser Automation]
-                                                                   ↓
-                                              Resolve TODOs → [Full Test Suite + Browser]
-                                                                   ↓
-                                              Update Impl Doc (final)
+Test Plan Generation (PRD criteria → test matrix → docs/test-plans/)
+       ↓
+DB Migration → Entities + Repos → [Repo Tests ← from plan]
+                                         ↓
+                    Services → [Service Tests ← from plan]
+                                         ↓
+              Controllers + DTOs → [Integration Tests ← from plan]
+                                         ↓
+                    API Services → [API Service Tests ← from plan]
+                                         ↓
+                      Components → [Component Tests + Browser ← from plan]
+                                         ↓
+                           Pages → [E2E Tests + Browser ← from plan]
+                                         ↓
+              Resolve TODOs → Verify test plan coverage → [Full Suite + Browser]
+                                         ↓
+                            Update Impl Doc + Test Plan (final)
 ```
 
-### Step 8: Report
+### Step 9: Report
 - Summary of all generated files
 - Test results: X passed, Y fixed, Z coverage
 - Browser automation verification: all pages visually confirmed

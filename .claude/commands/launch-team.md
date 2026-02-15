@@ -60,44 +60,55 @@ Use `TaskCreate` for each task, then `TaskUpdate` to set `addBlockedBy` relation
 Task 0: "Create implementation doc + diagrams"  → architect-agent
 ```
 
-**Phase 1 — Backend (implementation + tests interleaved)**:
+**Phase 1 — Test Case Generation (BEFORE implementation)**:
 ```
-Task 1:  "Write Flyway DB migration"                     → backend-agent, blockedBy: [0]
-Task 2:  "Implement JPA entities + repositories"          → backend-agent, blockedBy: [1]
-Task 3:  "Write repository tests (Testcontainers)"        → test-agent, blockedBy: [2]
-Task 4:  "Implement service layer"                        → backend-agent, blockedBy: [3]
-Task 5:  "Write service unit tests"                       → test-agent, blockedBy: [4]
-Task 6:  "Implement REST controllers + DTOs"              → backend-agent, blockedBy: [5]
-Task 7:  "Write integration tests (full HTTP roundtrip)"  → test-agent, blockedBy: [6]
-```
-
-**Phase 2 — Frontend (implementation + tests interleaved, starts after controllers)**:
-```
-Task 8:  "Create API service functions"                   → frontend-agent, blockedBy: [6]
-Task 9:  "Write API service tests"                        → test-agent, blockedBy: [8]
-Task 10: "Build UI components + hooks"                    → frontend-agent, blockedBy: [9]
-Task 11: "Write component tests"                          → test-agent, blockedBy: [10]
-Task 12: "Build page components + routing"                → frontend-agent, blockedBy: [11]
-Task 13: "Write E2E Playwright tests"                     → test-agent, blockedBy: [12, 7]
+Task 1:  "Generate test plan from PRD acceptance criteria" → test-agent, blockedBy: [0]
+         - Read PRD: extract every acceptance criterion
+         - Read impl doc + diagrams: understand planned architecture
+         - Build test matrix: criterion → tests at each layer (unit BE, unit FE, integration, E2E)
+         - Write test plan: docs/test-plans/TEST-<feature>.md
+         - Every cell in the matrix = actual test code to write later
 ```
 
-**Phase 3 — TODO Resolution + Full Test Suite**:
+**Phase 2 — Backend (implementation + tests interleaved)**:
 ```
-Task 14: "Resolve all TODOs in codebase"                  → backend-agent / frontend-agent, blockedBy: [13]
-Task 15: "Run full test suite — fix any failures"         → test-agent, blockedBy: [14]
+Task 2:  "Write Flyway DB migration"                     → backend-agent, blockedBy: [1]
+Task 3:  "Implement JPA entities + repositories"          → backend-agent, blockedBy: [2]
+Task 4:  "Write repository tests (from test plan)"        → test-agent, blockedBy: [3]
+Task 5:  "Implement service layer"                        → backend-agent, blockedBy: [4]
+Task 6:  "Write service unit tests (from test plan)"      → test-agent, blockedBy: [5]
+Task 7:  "Implement REST controllers + DTOs"              → backend-agent, blockedBy: [6]
+Task 8:  "Write integration tests (from test plan)"       → test-agent, blockedBy: [7]
 ```
 
-**Phase 4 — Quality (parallel, starts after all tests green)**:
+**Phase 3 — Frontend (implementation + tests interleaved, starts after controllers)**:
 ```
-Task 16: "Code review"                                    → review-agent, blockedBy: [15]
-Task 17: "Security review"                                → security-agent, blockedBy: [15]
+Task 9:  "Create API service functions"                   → frontend-agent, blockedBy: [7]
+Task 10: "Write API service tests (from test plan)"       → test-agent, blockedBy: [9]
+Task 11: "Build UI components + hooks"                    → frontend-agent, blockedBy: [10]
+Task 12: "Write component tests + browser (from plan)"    → test-agent, blockedBy: [11]
+Task 13: "Build page components + routing"                → frontend-agent, blockedBy: [12]
+Task 14: "Write E2E Playwright tests (from test plan)"    → test-agent, blockedBy: [13, 8]
 ```
 
-**Phase 5 — Fixes + Final Doc (after reviews)**:
+**Phase 4 — Validation (TODO + coverage check + full suite)**:
 ```
-Task 18: "Fix review + security findings"                 → backend-agent / frontend-agent, blockedBy: [16, 17]
-Task 19: "Re-run full test suite after fixes"             → test-agent, blockedBy: [18]
-Task 20: "Update implementation doc with final state"     → architect-agent, blockedBy: [19]
+Task 15: "Resolve all TODOs in codebase"                  → backend-agent / frontend-agent, blockedBy: [14]
+Task 16: "Verify test plan coverage — every PRD criterion has passing tests" → test-agent, blockedBy: [15]
+Task 17: "Run full test suite + browser automation"       → test-agent, blockedBy: [16]
+```
+
+**Phase 5 — Quality (parallel, starts after all tests green)**:
+```
+Task 18: "Code review"                                    → review-agent, blockedBy: [17]
+Task 19: "Security review"                                → security-agent, blockedBy: [17]
+```
+
+**Phase 6 — Fixes + Re-test + Final Doc (after reviews)**:
+```
+Task 20: "Fix review + security findings"                 → backend-agent / frontend-agent, blockedBy: [18, 19]
+Task 21: "Re-run full test suite + browser verify"        → test-agent, blockedBy: [20]
+Task 22: "Update implementation doc + test plan with final state" → architect-agent, blockedBy: [21]
 ```
 
 ### Step 6: Spawn Agents
