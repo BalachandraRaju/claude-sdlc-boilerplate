@@ -15,7 +15,22 @@
     ],
     "deny": [
       "Bash(rm -rf /)*",
-      "Bash(DROP DATABASE)*"
+      "Bash(rm -rf ~)*",
+      "Bash(rm -rf .)*",
+      "Bash(DROP DATABASE)*",
+      "Bash(DROP TABLE)*",
+      "Bash(TRUNCATE)*",
+      "Bash(git push --force)*",
+      "Bash(git push -f)*",
+      "Bash(git reset --hard)*",
+      "Bash(git clean -f)*",
+      "Bash(git checkout -- .)*",
+      "Bash(npm publish)*",
+      "Bash(npx publish)*",
+      "Bash(curl * | bash)*",
+      "Bash(wget * | bash)*",
+      "Bash(chmod 777)*",
+      "Bash(> /dev/sda)*"
     ]
   },
   "hooks": {
@@ -35,6 +50,10 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/pre-write-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-code-guard.sh"
           }
         ]
       }
@@ -50,6 +69,14 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/post-write-todo-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-write-security-scan.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-write-api-format-check.sh"
           }
         ]
       },

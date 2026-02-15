@@ -304,13 +304,27 @@ TeamDelete()
 - Bug fixes in different files/modules
 - Multiple agents working on unrelated tasks
 
-## Hooks Summary
+## Hooks Summary (Guardrails)
 
 | Hook | Trigger | Action |
 |------|---------|--------|
-| `pre-bash-guard` | Before Bash | Block `rm -rf`, `DROP DATABASE`, force-push |
+| `pre-bash-guard` | Before Bash | Block `rm -rf`, `DROP DATABASE`, force-push, `git reset --hard`, etc. |
 | `pre-write-guard` | Before Write/Edit | Block writes to `.env`, `.pem`, secrets |
+| `pre-code-guard` | Before Write/Edit | Check PRD, implementation doc, and test plan exist before writing implementation code |
 | `post-write-lint` | After Write/Edit | Java compile check or ESLint |
 | `post-write-todo-check` | After Write/Edit | Warn on untracked TODOs (missing Linear ref) |
+| `post-write-security-scan` | After Write/Edit | Scan for hardcoded secrets, SQL injection, XSS, `any` types, `@Autowired`, `dangerouslySetInnerHTML`, console.log, etc. |
+| `post-write-api-format-check` | After Write/Edit | Enforce `ApiResponse<T>` in controllers, `unwrapResponse` in services, `extractError` in components, pagination in service layer |
 | `post-commit-quality` | After `git commit` | Spotless + ESLint on committed files |
 | `on-stop-summary` | Agent stops | Generate session change summary |
+
+### Deny List (Blocked Commands)
+
+The following patterns are blocked in `.claude/settings.json`:
+- `rm -rf /`, `rm -rf ~`, `rm -rf .` — catastrophic file deletion
+- `DROP DATABASE`, `DROP TABLE`, `TRUNCATE` — database destruction
+- `git push --force`, `git push -f` — overwrite remote history
+- `git reset --hard`, `git clean -f`, `git checkout -- .` — discard local changes
+- `npm publish`, `npx publish` — accidental package publication
+- `curl|bash`, `wget|bash` — remote code execution
+- `chmod 777` — insecure file permissions

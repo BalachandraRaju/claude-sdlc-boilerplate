@@ -392,12 +392,24 @@ Configured in `.mcp.json`:
 ## Hooks (Guardrails)
 
 Configured in `.claude/settings.json`:
-- **pre-bash-guard** — Blocks destructive commands (`rm -rf /`, `DROP DATABASE`, force-push to main)
+
+**Pre-execution (PreToolUse):**
+- **pre-bash-guard** — Blocks destructive commands (`rm -rf /`, `DROP DATABASE`, force-push to main, `git reset --hard`, etc.)
 - **pre-write-guard** — Blocks writes to secrets files (`.env`, `.pem`, `credentials.json`)
+- **pre-code-guard** — Checks that PRD, implementation doc, and test plan exist before writing implementation code (skips docs, tests, configs, common files)
+
+**Post-execution (PostToolUse):**
 - **post-write-lint** — Auto-runs Java compile check or ESLint after code edits
 - **post-write-todo-check** — Warns if code contains untracked TODOs (missing Linear issue reference)
+- **post-write-security-scan** — Scans for hardcoded secrets, SQL injection, XSS, `any` types, `@Autowired` on fields, `dangerouslySetInnerHTML`, direct axios imports in components, hardcoded API URLs, `console.log` in production code, `localStorage` for passwords
+- **post-write-api-format-check** — Enforces: controllers use `ApiResponse<T>`, no try/catch in controllers (use `GlobalExceptionHandler`), services use pagination, frontend services use `unwrapResponse()`, frontend components use `extractError()`
+
+**Other:**
 - **post-commit-quality** — Runs formatting + lint checks after every commit
 - **on-stop-summary** — Generates session summary listing all changed files
+
+**Deny list** — Blocked commands (in settings.json `permissions.deny`):
+`rm -rf /`, `rm -rf ~`, `rm -rf .`, `DROP DATABASE`, `DROP TABLE`, `TRUNCATE`, `git push --force`, `git push -f`, `git reset --hard`, `git clean -f`, `git checkout -- .`, `npm publish`, `curl|bash`, `wget|bash`, `chmod 777`
 
 ## Known Issues & Fixes
 
