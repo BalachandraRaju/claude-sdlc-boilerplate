@@ -7,10 +7,10 @@ This document describes how the agents, skills, and tools work together across t
 | Agent | Role | Tools | MCP Servers |
 |-------|------|-------|-------------|
 | `prd-agent` | PRD generation, requirements | Read/Write, WebSearch | Linear, Figma |
-| `architect-agent` | System design, DB schema, API design | Read/Write | - |
+| `architect-agent` | System design, DB schema, API design, diagrams | Read/Write | - |
 | `backend-agent` | Java/Spring Boot implementation | Bash, Read/Write/Edit | PostgreSQL |
 | `frontend-agent` | React/TypeScript implementation, mockups | Bash, Read/Write/Edit | Playwright, Figma, Browser |
-| `test-agent` | Test generation and execution | Bash, Read/Write | Playwright, Browser |
+| `test-agent` | Test generation, execution, browser automation | Bash, Read/Write | Playwright, Browser |
 | `security-agent` | Security review and scanning | Bash, Read/Grep, WebSearch | Linear, Playwright |
 | `review-agent` | Code review, PRD review, quality | Bash, Read/Grep | Linear |
 | `devops-agent` | CI/CD, Docker, deployment | Bash, Read/Write | Linear |
@@ -20,8 +20,12 @@ This document describes how the agents, skills, and tools work together across t
 1. **Plan Mode First** — Enter `EnterPlanMode` when requirements are unclear or task is non-trivial
 2. **PRD is Source of Truth** — Always read `docs/prd/` before doing anything. Ask if no PRD exists.
 3. **Ask, Don't Assume** — Use `AskUserQuestion` with concrete options. Never guess.
-4. **Update CLAUDE.md** — Record recurring issues in "Known Issues & Fixes" section
-5. **Clean Code** — Follow CLAUDE.md coding standards. Always.
+4. **Update CLAUDE.md + Memory** — Record new instructions/issues in both CLAUDE.md and memory.md
+5. **Implementation Depth** — Never stop at high-level. Trace every action from button click to DB and back.
+6. **Handle TODOs Immediately** — Resolve now or create Linear issue reference `TODO(LIN-123)`
+7. **Update CLAUDE.md + Memory on New Instructions** — Every new user instruction updates both files
+8. **Browser Automation After Every UI Test** — Use Playwright MCP to verify every UI change visually
+9. **Uniform API Format** — All endpoints use `ApiResponse<T>`, all errors via `GlobalExceptionHandler`
 
 ## Pipeline Phases
 
@@ -37,36 +41,71 @@ This document describes how the agents, skills, and tools work together across t
 │  Phase 2: DESIGN  (parallel)                                    │
 │  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
 │  │ Arch Doc │    │ Mockups  │    │ Figma    │                  │
-│  │arch-agent│    │front-agt │    │ Extract  │                  │
+│  │ +Diagrams│    │front-agt │    │ Extract  │                  │
+│  │arch-agent│    │          │    │          │                  │
 │  └──────────┘    └──────────┘    └──────────┘                  │
 │         └────────────┼────────────────┘                         │
 │                      ↓                                          │
 │               User Approval                                     │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 3: IMPLEMENTATION                                        │
+│  Phase 3: IMPLEMENTATION + TESTING (interleaved)                │
 │                                                                 │
-│  ┌──────────┐                                                   │
-│  │DB Migrate│ (backend-agent)                                   │
-│  └────┬─────┘                                                   │
-│       ↓                                                         │
-│  ┌──────────┐                                                   │
-│  │ Entities │ (backend-agent)                                   │
-│  └────┬─────┘                                                   │
-│       ↓                                                         │
-│  ┌──────────┐                                                   │
-│  │ Services │ (backend-agent)                                   │
-│  └────┬─────┘                                                   │
-│       ↓                                                         │
 │  ┌──────────┐    ┌──────────┐                                   │
-│  │Controllers│───→│API Svcs  │ ← frontend starts here           │
-│  │backend-agt│   │front-agt │                                   │
-│  └──────────┘    └────┬─────┘                                   │
+│  │DB Migrate│───→│ Entities │ (backend-agent)                   │
+│  └──────────┘    │ + Repos  │                                   │
+│                  └────┬─────┘                                   │
 │                       ↓                                         │
 │                  ┌──────────┐                                   │
-│                  │ UI + Pages│ (frontend-agent)                  │
-│                  └──────────┘                                   │
+│                  │Repo Tests│ (test-agent) ← TEST NOW           │
+│                  │Testcontrs│                                    │
+│                  └────┬─────┘                                   │
+│                       ↓                                         │
+│                  ┌──────────┐                                   │
+│                  │ Services │ (backend-agent)                   │
+│                  └────┬─────┘                                   │
+│                       ↓                                         │
+│                  ┌──────────┐                                   │
+│                  │ Service  │ (test-agent) ← TEST NOW           │
+│                  │  Tests   │                                   │
+│                  └────┬─────┘                                   │
+│                       ↓                                         │
+│                  ┌──────────┐                                   │
+│                  │Controller│ (backend-agent)                   │
+│                  │ + DTOs   │                                   │
+│                  └────┬─────┘                                   │
+│                       ↓                                         │
+│                  ┌──────────┐                                   │
+│                  │Integrtn  │ (test-agent) ← TEST NOW           │
+│                  │  Tests   │ verify ApiResponse format         │
+│                  └────┬─────┘                                   │
+│                       ↓                                         │
+│  ┌──────────┐    ┌──────────┐                                   │
+│  │API Svcs  │───→│ API Svc  │ (test-agent) ← TEST NOW          │
+│  │front-agt │    │  Tests   │ verify unwrapResponse/extractError│
+│  └──────────┘    └────┬─────┘                                   │
+│                       ↓                                         │
+│  ┌──────────┐    ┌──────────┐                                   │
+│  │Components│───→│Component │ (test-agent) ← TEST NOW           │
+│  │ + Hooks  │    │  Tests   │ + Playwright browser automation   │
+│  │front-agt │    │          │                                   │
+│  └──────────┘    └────┬─────┘                                   │
+│                       ↓                                         │
+│  ┌──────────┐    ┌──────────┐                                   │
+│  │Pages +   │───→│E2E Tests │ (test-agent) ← TEST NOW          │
+│  │ Routing  │    │Playwright│ full browser automation           │
+│  │front-agt │    │          │ screenshot + click flows          │
+│  └──────────┘    └──────────┘                                   │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 4: QUALITY  (all parallel)                               │
+│  Phase 4: VALIDATION                                            │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
+│  │Resolve   │───→│Full Test │───→│Browser   │                  │
+│  │All TODOs │    │  Suite   │    │Automation│                  │
+│  │back/front│    │test-agent│    │Playwright│                  │
+│  └──────────┘    └──────────┘    │ verify   │                  │
+│                                  └──────────┘                  │
+│         All tests green + all pages visually verified           │
+├─────────────────────────────────────────────────────────────────┤
+│  Phase 5: QUALITY  (all parallel)                               │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐                      │
 │  │Code Revw │  │Sec Review│  │SonarQube │                      │
 │  │review-agt│  │secur-agt │  │review-agt│                      │
@@ -74,17 +113,10 @@ This document describes how the agents, skills, and tools work together across t
 │         └──────────┼──────────┘                                 │
 │                    ↓                                            │
 │              Fix Findings (backend/frontend agents)             │
-├─────────────────────────────────────────────────────────────────┤
-│  Phase 5: TESTING                                               │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
-│  │Test Gen  │───→│Run Tests │───→│Fix Fails │                  │
-│  │test-agent│    │test-agent│    │back/front│                  │
-│  └──────────┘    └──────────┘    └──────────┘                  │
-│                       │                                         │
-│                  ┌────┴─────┐                                   │
-│                  │E2E Tests │ (Playwright MCP)                  │
-│                  │test-agent│                                   │
-│                  └──────────┘                                   │
+│                    ↓                                            │
+│              Re-run Full Test Suite (must stay green)            │
+│                    ↓                                            │
+│              Browser Automation (re-verify after fixes)          │
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 6: DEPLOY                                                │
 │  ┌──────────┐    ┌──────────┐    ┌──────────┐                  │
@@ -95,7 +127,7 @@ This document describes how the agents, skills, and tools work together across t
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 7: SHIP                                                  │
 │  ┌──────────┐                                                   │
-│  │Final Revw│───→ Update Linear ───→ Done                       │
+│  │Final Revw│───→ Update Linear ───→ Update Impl Doc ───→ Done  │
 │  │review-agt│                                                   │
 │  └──────────┘                                                   │
 └─────────────────────────────────────────────────────────────────┘
@@ -115,14 +147,40 @@ This document describes how the agents, skills, and tools work together across t
 TeamCreate(team_name="user-profile", description="Implementing user profile feature")
 ```
 
-**Step 2: Create tasks with dependencies**
+**Step 2: Create tasks with dependencies (implementation + tests interleaved)**
 ```
-TaskCreate(subject="Write Flyway DB migration", description="...", activeForm="Writing migration")
-TaskCreate(subject="Implement JPA entities", description="...", activeForm="Implementing entities")
-TaskUpdate(taskId="2", addBlockedBy=["1"])  # entities blocked by migration
-TaskCreate(subject="Implement service layer", description="...", activeForm="Implementing services")
-TaskUpdate(taskId="3", addBlockedBy=["2"])  # services blocked by entities
-# ... continue for all tasks
+# Phase 0 — Documentation
+TaskCreate(subject="Create implementation doc + diagrams", ...)
+
+# Phase 1 — Backend (implementation + tests interleaved)
+TaskCreate(subject="Write Flyway DB migration", ...)                    # blockedBy: [0]
+TaskCreate(subject="Implement JPA entities + repositories", ...)        # blockedBy: [1]
+TaskCreate(subject="Write repository tests (Testcontainers)", ...)      # blockedBy: [2] ← TEST
+TaskCreate(subject="Implement service layer", ...)                      # blockedBy: [3]
+TaskCreate(subject="Write service unit tests", ...)                     # blockedBy: [4] ← TEST
+TaskCreate(subject="Implement REST controllers + DTOs", ...)            # blockedBy: [5]
+TaskCreate(subject="Write integration tests (HTTP roundtrip)", ...)     # blockedBy: [6] ← TEST
+
+# Phase 2 — Frontend (implementation + tests interleaved)
+TaskCreate(subject="Create API service functions", ...)                 # blockedBy: [6]
+TaskCreate(subject="Write API service tests", ...)                      # blockedBy: [8] ← TEST
+TaskCreate(subject="Build UI components + hooks", ...)                  # blockedBy: [9]
+TaskCreate(subject="Write component tests + browser automation", ...)   # blockedBy: [10] ← TEST
+TaskCreate(subject="Build page components + routing", ...)              # blockedBy: [11]
+TaskCreate(subject="Write E2E Playwright tests + browser verify", ...)  # blockedBy: [12, 7] ← TEST
+
+# Phase 3 — Validation
+TaskCreate(subject="Resolve all TODOs in codebase", ...)                # blockedBy: [13]
+TaskCreate(subject="Run full test suite + browser automation", ...)     # blockedBy: [14] ← VALIDATE
+
+# Phase 4 — Quality (parallel)
+TaskCreate(subject="Code review", ...)                                  # blockedBy: [15]
+TaskCreate(subject="Security review", ...)                              # blockedBy: [15]
+
+# Phase 5 — Fixes + Re-test + Final
+TaskCreate(subject="Fix review + security findings", ...)               # blockedBy: [16, 17]
+TaskCreate(subject="Re-run full test suite + browser verify", ...)      # blockedBy: [18] ← VALIDATE
+TaskCreate(subject="Update implementation doc with final state", ...)   # blockedBy: [19]
 ```
 
 **Step 3: Spawn agents**
@@ -145,9 +203,9 @@ Spawn multiple agents in a single message to run them in parallel:
 # Send ONE message with multiple Task tool calls:
 Task(name="backend-dev", ...)    # Handles backend tasks sequentially
 Task(name="frontend-dev", ...)   # Waits for backend, then starts
-Task(name="tester", ...)         # Waits for implementation, then tests
-Task(name="security-rev", ...)   # Waits for all code, then reviews
-Task(name="code-rev", ...)       # Waits for all code, then reviews
+Task(name="tester", ...)         # Writes + runs tests after EACH implementation step
+Task(name="security-rev", ...)   # Waits for all tests green, then reviews
+Task(name="code-rev", ...)       # Waits for all tests green, then reviews
 ```
 
 **Step 4: Agents coordinate via TaskList + SendMessage**
@@ -172,17 +230,20 @@ TeamDelete()
 | `/generate-prd` | Requirements | Generate PRD + Linear issues |
 | `/review-prd` | Requirements | Review PRD for completeness |
 | `/generate-mockups` | Design | React component mockups (+ Figma extraction) |
-| `/generate-code` | Implementation | Multi-agent code generation |
-| `/generate-tests` | Testing | Test plan + automated tests |
+| `/generate-diagram` | Design | Excalidraw architecture/flow/ER diagrams |
+| `/generate-code` | Implementation | Multi-agent code generation with interleaved tests |
+| `/generate-tests` | Testing | Test plan + automated tests at every layer |
+| `/run-tests` | Testing | Execute all test suites, fix failures |
 | `/review-code` | Quality | Code review with findings |
 | `/security-review` | Quality | OWASP security analysis |
 | `/analyze-code` | Quality | SonarQube + static analysis |
-| `/run-tests` | Testing | Execute all test suites |
+| `/resolve-todos` | Validation | Scan + fix all TODO/FIXME/HACK/XXX |
 | `/fix-bugs` | Maintenance | Diagnose and fix bugs |
 | `/fix-review` | Quality | Fix review/security findings |
 | `/build-local` | Deploy | Build backend + frontend locally |
 | `/deploy-staging` | Deploy | Full staging deploy with checks |
 | `/deploy-prod` | Deploy | Production deploy (user confirm) |
+| `/new-worktree` | Setup | Create isolated feature branch worktree |
 | `/launch-team` | All | Spin up full multi-agent team |
 | `/full-sdlc` | All | End-to-end pipeline |
 
@@ -192,7 +253,7 @@ TeamDelete()
 |------------|---------|---------|
 | **Linear** | prd-agent, security-agent, review-agent, devops-agent | Issue tracking, PRD management, findings |
 | **PostgreSQL** | backend-agent | Schema inspection, data queries |
-| **Playwright** | test-agent, frontend-agent, security-agent | Browser automation, E2E tests, screenshots |
+| **Playwright** | test-agent, frontend-agent, security-agent | Browser automation, E2E tests, screenshots, visual verification |
 | **Figma** | prd-agent, frontend-agent | Design tokens, component specs, screen layouts |
 | **Browser** | test-agent, frontend-agent | Web page inspection, rendered output |
 | **Filesystem** | All agents | Controlled file access for docs |
@@ -201,15 +262,15 @@ TeamDelete()
 
 **Must be sequential** (outputs feed into next step):
 - PRD → PRD Review → Approval
-- DB Migration → Entities → Services → Controllers
-- API Services → UI Components (frontend needs API contracts)
-- Test Generation → Test Execution → Bug Fix
+- DB Migration → Entities → Repo Tests → Services → Service Tests → Controllers → Integration Tests
+- API Services → API Service Tests → UI Components → Component Tests → Pages → E2E Tests
+- Implementation → TODO Resolution → Full Test Suite → Quality Reviews
 - Build → Staging → Production
 
 **Can run in parallel** (independent work):
 - Architecture Doc + UI Mockups + Figma Extraction
 - Code Review + Security Review + Code Quality Analysis
-- Backend Tests + Frontend Tests + E2E Tests
+- Backend Tests + Frontend Tests (if on different layers)
 - Bug fixes in different files/modules
 - Multiple agents working on unrelated tasks
 
@@ -220,5 +281,6 @@ TeamDelete()
 | `pre-bash-guard` | Before Bash | Block `rm -rf`, `DROP DATABASE`, force-push |
 | `pre-write-guard` | Before Write/Edit | Block writes to `.env`, `.pem`, secrets |
 | `post-write-lint` | After Write/Edit | Java compile check or ESLint |
+| `post-write-todo-check` | After Write/Edit | Warn on untracked TODOs (missing Linear ref) |
 | `post-commit-quality` | After `git commit` | Spotless + ESLint on committed files |
 | `on-stop-summary` | Agent stops | Generate session change summary |
