@@ -1,0 +1,42 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Backend
+backend/target/
+backend/*.jar
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Session summaries (generated)
+docs/.last-session-summary.md
+
+# SonarQube
+.scannerwork/
+
+# Secrets
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Worktrees (sibling directory, not inside repo — but just in case)
+worktrees/

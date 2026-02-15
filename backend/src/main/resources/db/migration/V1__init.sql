@@ -1,0 +1,2 @@
+-- Initial schema setup
+-- Add your tables here as needed
